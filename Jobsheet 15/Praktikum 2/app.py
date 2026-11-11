@@ -8,10 +8,12 @@ from skimage.feature import hog
 
 app = Flask(__name__)
 
-# Load Model & Scaler
-MODEL_PATH = 'day_night_model.h5'
-SCALER_PATH = 'scaler.pkl'
+# Tentukan direktori absolut agar file terbaca dengan tepat di server cloud
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, 'day_night_model.h5')
+SCALER_PATH = os.path.join(BASE_DIR, 'scaler.pkl')
 
+# Load Model & Scaler dengan penanganan error yang jelas
 try:
     model = tf.keras.models.load_model(MODEL_PATH)
     with open(SCALER_PATH, 'rb') as f:
@@ -19,13 +21,17 @@ try:
     print("✅ System Loaded Successfully")
 except Exception as e:
     print(f"❌ Error loading system: {e}")
+    # Berikan nilai None agar tidak langsung crash tapi ketahuan errornya
+    model = None
+    scaler = None
 
 def preprocess_image(image_bytes):
-    # Decode gambar
+    if scaler is None:
+        raise ValueError("Scaler belum berhasil dimuat oleh server!")
+        
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
-    # Preprocessing (Harus sama persis dengan Training)
     img = cv2.resize(img, (256, 256))
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
@@ -50,6 +56,9 @@ def home():
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
+        if model is None or scaler is None:
+            return "Error: Model atau Scaler gagal dimuat di server. Cek file .h5 dan .pkl di GitHub!"
+            
         file = request.files['file']
         data = preprocess_image(file.read())
         prediction = model.predict(data)[0][0]
