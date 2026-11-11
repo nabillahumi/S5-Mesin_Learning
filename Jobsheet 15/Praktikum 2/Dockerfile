@@ -23,5 +23,5 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 COPY --chown=user . /app
 
 # Expose Port & Jalankan
-EXPOSE 7860
+EXPOSE 5000
 CMD ["python", "app.py"]
